@@ -1105,13 +1105,13 @@ def create_ds_cnn_model(fingerprint_input, model_settings, model_size_info,
                                  num_outputs=inputs.shape[3].value * expansion,
                                  stride=stride,
                                  kernel_size=[1, 1],
-                                 scope=sc + '/dw_conv')
+                                 scope=sc + '/exp_conv')
 
-    bn = slim.batch_norm(expansion_conv, scope=sc + '/dw_conv/batch_norm')
+    bn = slim.batch_norm(expansion_conv, scope=sc + '/exp_conv/batch_norm')
     depthwise_conv = slim.separable_conv2d(bn, num_outputs=None, stride=stride,
                                            depth_multiplier=1, kernel_size=kernel_size,
-                                           scope=sc + '/pw_conv')
-    bn = slim.batch_norm(depthwise_conv, scope=sc + '/pw_conv/batch_norm')
+                                           scope=sc + '/dw_conv')
+    bn = slim.batch_norm(depthwise_conv, scope=sc + '/dw_conv/batch_norm')
 
     projection_conv = slim.conv2d(bn, num_outputs=num_pwc_filters, kernel_size=[1, 1], scope=sc + '/pj_conv',
                                   activation_fn=None)
@@ -1120,7 +1120,7 @@ def create_ds_cnn_model(fingerprint_input, model_settings, model_size_info,
         return bn
     else:
         if inputs.shape[3].value != num_pwc_filters:
-            bn = slim.conv2d(inputs=bn, num_outputs=num_pwc_filters, kernel_size=[1, 1], activation_fn=None)
+            bn = slim.conv2d(inputs=bn, num_outputs=num_pwc_filters, kernel_size=[1, 1], scope=sc + '/res_conv', activation_fn=None)
         return bn
 
 
