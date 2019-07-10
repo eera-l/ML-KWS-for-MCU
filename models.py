@@ -1098,24 +1098,33 @@ def create_ds_cnn_model(fingerprint_input, model_settings, model_size_info,
     """ Helper function to build the depth-wise separable convolution layer.
     """
 
+    expansion = 6
+
     # skip pointwise by setting num_outputs=None
-    depthwise_conv = slim.separable_convolution2d(inputs,
-                                                  num_outputs=None,
-                                                  stride=stride,
-                                                  depth_multiplier=1,
-                                                  kernel_size=kernel_size,
-                                                  scope=sc+'/dw_conv')
+    expansion_conv = slim.conv2d(inputs=inputs,
+                                 num_outputs=inputs.shape[3].value * expansion,
+                                 stride=stride,
+                                 kernel_size=[1, 1],
+                                 scope=sc + '/dw_conv')
 
-    bn = slim.batch_norm(depthwise_conv, scope=sc+'/dw_conv/batch_norm')
-    pointwise_conv = slim.convolution2d(bn,
-                                        num_pwc_filters,
-                                        kernel_size=[1, 1],
-                                        scope=sc+'/pw_conv')
-    bn = slim.batch_norm(pointwise_conv, scope=sc+'/pw_conv/batch_norm')
-    return bn
+    bn = slim.batch_norm(expansion_conv, scope=sc + '/dw_conv/batch_norm')
+    depthwise_conv = slim.separable_conv2d(bn, num_outputs=None, stride=stride,
+                                           depth_multiplier=1, kernel_size=kernel_size,
+                                           scope=sc + '/pw_conv')
+    bn = slim.batch_norm(depthwise_conv, scope=sc + '/pw_conv/batch_norm')
+
+    projection_conv = slim.conv2d(bn, num_outputs=num_pwc_filters, kernel_size=[1, 1], scope=sc + '/pj_conv',
+                                  activation_fn=None)
+    bn = slim.batch_norm(projection_conv, scope=sc + '/pj_conv/batch_norm', activation_fn=None)
+    if stride == 2:
+        return bn
+    else:
+        if inputs.shape[3].value != num_pwc_filters:
+            bn = slim.conv2d(inputs=bn, num_outputs=num_pwc_filters, kernel_size=[1, 1], activation_fn=None)
+        return bn
 
 
-  if is_training:
+if is_training:
     dropout_prob = tf.placeholder(tf.float32, name='dropout_prob')
 
   label_count = model_settings['label_count']
