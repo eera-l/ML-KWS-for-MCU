@@ -216,38 +216,56 @@ def create_ds_cnn_model(fingerprint_input, model_settings, model_size_info,
     """ Helper function to build the depth-wise separable convolution layer.
     """
 
+    expansion = 6
+
     # skip pointwise by setting num_outputs=None
-    depthwise_conv = slim.separable_convolution2d(inputs,
-                                                  num_outputs=None,
-                                                  stride=stride,
-                                                  depth_multiplier=1,
-                                                  kernel_size=kernel_size,
-                                                  scope=sc+'/dw_conv',
-                                                  reuse=tf.AUTO_REUSE)
-    if(act_max[2*layer_no]>0):
-      depthwise_conv = tf.fake_quant_with_min_max_vars(depthwise_conv, 
-          min=-act_max[2*layer_no], 
-          max=act_max[2*layer_no]-(act_max[2*layer_no]/128.0), 
-          num_bits=8, name='quant_ds_conv'+str(layer_no))
-    bn = tf.nn.relu(depthwise_conv)
+    expansion_conv = slim.conv2d(inputs=inputs,
+                                 num_outputs=inputs.shape[3].value * expansion,
+                                 stride=stride,
+                                 kernel_size=[1, 1],
+                                 scope=sc + '/exp_conv')
+    if (act_max[2 * layer_no + 1] > 0):
+        expansion_conv = tf.fake_quant_with_min_max_vars(expansion_conv,
+                                                         min=-act_max[2 * layer_no + 1],
+                                                         max=act_max[2 * layer_no + 1] - (
+                                                                 act_max[2 * layer_no + 1] / 128.0),
+                                                         num_bits=8, name='quant_exp_conv' + str(layer_no + 1))
+    bn = tf.nn.relu6(expansion_conv)
 
-    # batch-norm weights folded into depthwise conv 
-    # bn = slim.batch_norm(depthwise_conv, scope=sc+'/dw_conv/batch_norm')
-    pointwise_conv = slim.convolution2d(bn,
-                                        num_pwc_filters,
-                                        kernel_size=[1, 1],
-                                        scope=sc+'/pw_conv',
-                                        reuse=tf.AUTO_REUSE)
-    if(act_max[2*layer_no+1]>0):
-      pointwise_conv = tf.fake_quant_with_min_max_vars(pointwise_conv, 
-          min=-act_max[2*layer_no+1], 
-          max=act_max[2*layer_no+1]-(act_max[2*layer_no+1]/128.0), 
-          num_bits=8, name='quant_pw_conv'+str(layer_no+1))
-    bn = tf.nn.relu(pointwise_conv)
+    depthwise_conv = slim.separable_conv2d(bn, num_outputs=None, stride=stride,
+                                           depth_multiplier=1, kernel_size=kernel_size,
+                                           scope=sc + '/dw_conv')
+    if (act_max[2 * layer_no] > 0):
+        depthwise_conv = tf.fake_quant_with_min_max_vars(depthwise_conv,
+                                                         min=-act_max[2 * layer_no],
+                                                         max=act_max[2 * layer_no] - (act_max[2 * layer_no] / 128.0),
+                                                         num_bits=8, name='quant_dw_conv' + str(layer_no))
+    bn = tf.nn.relu6(depthwise_conv)
 
-    # batch-norm weights folded into pointwise conv 
-    # bn = slim.batch_norm(pointwise_conv, scope=sc+'/pw_conv/batch_norm')
-    return bn
+    projection_conv = slim.conv2d(bn, num_outputs=num_pwc_filters, kernel_size=[1, 1], scope=sc + '/pj_conv',
+                                  activation_fn=None)
+    if (act_max[2 * layer_no + 1] > 0):
+        projection_conv = tf.fake_quant_with_min_max_vars(projection_conv,
+                                                          min=-act_max[2 * layer_no + 1],
+                                                          max=act_max[2 * layer_no + 1] - (
+                                                                  act_max[2 * layer_no + 1] / 128.0),
+                                                          num_bits=8, name='quant_pj_conv' + str(layer_no + 1))
+    bn = tf.nn.relu6(projection_conv)
+
+    # return bn
+    if stride == 2:
+        return bn
+    else:
+        if inputs.shape[3].value != num_pwc_filters:
+            residual_conv = slim.conv2d(inputs=bn, num_outputs=num_pwc_filters, kernel_size=[1, 1], scope=sc + '/res_conv', activation_fn=None)
+            if (act_max[2 * layer_no + 1] > 0):
+                residual_conv = tf.fake_quant_with_min_max_vars(residual_conv,
+                                                                  min=-act_max[2 * layer_no + 1],
+                                                                  max=act_max[2 * layer_no + 1] - (
+                                                                          act_max[2 * layer_no + 1] / 128.0),
+                                                                  num_bits=8, name='quant_res_conv' + str(layer_no + 1))
+            bn = tf.nn.relu6(residual_conv)
+        return bn
 
   if is_training:
     dropout_prob = tf.placeholder(tf.float32, name='dropout_prob')
@@ -293,7 +311,7 @@ def create_ds_cnn_model(fingerprint_input, model_settings, model_size_info,
                           is_training=is_training,
                           decay=0.96,
                           updates_collections=None,
-                          activation_fn=tf.nn.relu):
+                          activation_fn=tf.nn.relu6):
         if act_max[0]>0:
           fingerprint_4d = tf.fake_quant_with_min_max_vars(fingerprint_4d, 
               min=-act_max[0], max=act_max[0]-(act_max[0]/128.0), 

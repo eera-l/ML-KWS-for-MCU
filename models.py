@@ -1124,7 +1124,7 @@ def create_ds_cnn_model(fingerprint_input, model_settings, model_size_info,
         return bn
 
 
-if is_training:
+  if is_training:
     dropout_prob = tf.placeholder(tf.float32, name='dropout_prob')
 
   label_count = model_settings['label_count']
@@ -1168,7 +1168,7 @@ if is_training:
                           is_training=is_training,
                           decay=0.96,
                           updates_collections=None,
-                          activation_fn=tf.nn.relu):
+                          activation_fn=tf.nn.relu6):
         for layer_no in range(0,num_layers):
           if layer_no==0:
             net = slim.convolution2d(fingerprint_4d, conv_feat[layer_no],\
@@ -1190,4 +1190,5 @@ if is_training:
     return logits, dropout_prob
   else:
     return logits
+
 
