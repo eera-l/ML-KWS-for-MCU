@@ -259,12 +259,12 @@ def create_ds_cnn_model(fingerprint_input, model_settings, model_size_info,
         if inputs.shape[3].value != num_pwc_filters:
             residual_conv = slim.conv2d(inputs=bn, num_outputs=num_pwc_filters, kernel_size=[1, 1], scope=sc + '/res_conv', activation_fn=None)
             if (act_max[2 * layer_no + 1] > 0):
-                residual_conv = tf.fake_quant_with_min_max_vars(residual_conv,
+                bn = tf.fake_quant_with_min_max_vars(residual_conv,
                                                                   min=-act_max[2 * layer_no + 1],
                                                                   max=act_max[2 * layer_no + 1] - (
                                                                           act_max[2 * layer_no + 1] / 128.0),
                                                                   num_bits=8, name='quant_res_conv' + str(layer_no + 1))
-            bn = tf.nn.relu6(residual_conv)
+            # bn = tf.nn.relu6(residual_conv)
         return bn
 
   if is_training:
@@ -324,7 +324,7 @@ def create_ds_cnn_model(fingerprint_input, model_settings, model_size_info,
             if act_max[1]>0:
               net = tf.fake_quant_with_min_max_vars(net, min=-act_max[1], 
                   max=act_max[1]-(act_max[1]/128.0), num_bits=8, name='quant_conv1')
-            net = tf.nn.relu(net)
+            net = tf.nn.relu6(net)
             #net = slim.batch_norm(net, scope='conv_1/batch_norm')
           else:
             net = _depthwise_separable_conv(net, conv_feat[layer_no], \
