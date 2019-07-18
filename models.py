@@ -1115,12 +1115,12 @@ def create_ds_cnn_model(fingerprint_input, model_settings, model_size_info,
 
     projection_conv = slim.conv2d(bn, num_outputs=num_pwc_filters, kernel_size=[1, 1], scope=sc + '/pj_conv',
                                   activation_fn=None)
-    bn = slim.batch_norm(projection_conv, scope=sc + '/pj_conv/batch_norm', activation_fn=None)
+    bn = slim.batch_norm(projection_conv, scope=sc + '/pj_conv/batch_norm')
     if stride == 2:
         return bn
     else:
         if inputs.shape[3].value != num_pwc_filters:
-            bn = slim.conv2d(inputs=bn, num_outputs=num_pwc_filters, kernel_size=[1, 1], scope=sc + '/res_conv', activation_fn=None)
+            bn = slim.conv2d(inputs=bn, num_outputs=num_pwc_filters, kernel_size=[1, 1], scope=sc + '/res_conv')
         return bn
 
 

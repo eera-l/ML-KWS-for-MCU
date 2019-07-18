@@ -257,7 +257,7 @@ def create_ds_cnn_model(fingerprint_input, model_settings, model_size_info,
         return bn
     else:
         if inputs.shape[3].value != num_pwc_filters:
-            residual_conv = slim.conv2d(inputs=bn, num_outputs=num_pwc_filters, kernel_size=[1, 1], scope=sc + '/res_conv', activation_fn=None)
+            residual_conv = slim.conv2d(inputs=bn, num_outputs=num_pwc_filters, kernel_size=[1, 1], scope=sc + '/res_conv')
             if (act_max[2 * layer_no + 1] > 0):
                 bn = tf.fake_quant_with_min_max_vars(residual_conv,
                                                                   min=-act_max[2 * layer_no + 1],
